@@ -1,15 +1,14 @@
 import pandas as pd
 import numpy as np
 import tensorflow as tf
+from sklearn.model_selection import train_test_split
 
 # Step 1: Load normalized data from Excel file
 def load_data(file_path):
     df = pd.read_excel(file_path)
     # Extract the 12 input parameters and TMRF (target)
     data = df.iloc[:, 1:14].values
-    print(data[:, -1])
     return data[:, :-1], data[:, -1]  # Return input parameters and target separately
-
 
 def train_model(data, target, hidden_layer_weights, hidden_layer_bias, output_layer_weights, output_layer_bias, learning_rate, momentum, epochs):
     velocity_hidden_weights = tf.zeros_like(hidden_layer_weights)
@@ -50,7 +49,9 @@ def train_model(data, target, hidden_layer_weights, hidden_layer_bias, output_la
             hidden_layer_weights += velocity_hidden_weights
             hidden_layer_bias += velocity_hidden_bias
 
-    # Final predictions
+    return hidden_layer_weights, hidden_layer_bias, output_layer_weights, output_layer_bias
+
+def predict(data, hidden_layer_weights, hidden_layer_bias, output_layer_weights, output_layer_bias):
     predictions = []
     for i in range(len(data)):
         x = data[i]
@@ -88,8 +89,11 @@ def main():
     # Load data
     data, target = load_data('normalized_data.xlsx')
 
+    # Split the data into training and testing sets (80% train, 20% test)
+    data_train, data_test, target_train, target_test = train_test_split(data, target, test_size=0.2, random_state=42)
+
     # Set hyperparameters
-    learning_rate = 0.0364438#0.036440#0.036442=0.81CC43=0.79count 14
+    learning_rate = 0.0364438
     momentum = 1.0
     epochs = 5000
 
@@ -111,19 +115,22 @@ def main():
     
     hidden_layer_bias = np.array([0.367257689828437, 0.204492956574989, 0.00664597413608115], dtype=np.float64)
     
-    output_layer_weights = np.array([
-        [0.70355485433932],
-        [0.27076991785223],
-        [0.581742969532814]
-    ], dtype=np.float64)
+    output_layer_weights = np.array([[0.70355485433932],
+                                     [0.27076991785223],
+                                     [0.581742969532814]], dtype=np.float64)
     
     output_layer_bias = np.array([0.445260738677795], dtype=np.float64)
 
     # Train the model
-    predictions = train_model(data, target, hidden_layer_weights, hidden_layer_bias, output_layer_weights, output_layer_bias, learning_rate, momentum, epochs)
+    hidden_layer_weights, hidden_layer_bias, output_layer_weights, output_layer_bias = train_model(
+        data_train, target_train, hidden_layer_weights, hidden_layer_bias, output_layer_weights, output_layer_bias, learning_rate, momentum, epochs
+    )
+
+    # Make predictions on the test data
+    predictions = predict(data_test, hidden_layer_weights, hidden_layer_bias, output_layer_weights, output_layer_bias)
 
     # Calculate metrics
-    y_true = target  # Use the loaded target values
+    y_true = target_test  # Use the test target values
     mad, sd, cc, mse = calculate_metrics(y_true, predictions)
 
     # Output results
